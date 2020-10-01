@@ -1,83 +1,19 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- * @flow strict-local
- */
-
 import React from 'react';
-import {
-  SafeAreaView,
-  StyleSheet,
-  ScrollView,
-  View,
-  Text,
-  StatusBar,
-  Alert
-} from 'react-native';
+import { View, StyleSheet, FlatList, Alert } from 'react-native';
 
-import {
-  Header,
-  LearnMoreLinks,
-  Colors,
-  DebugInstructions,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+import Header from './components/Header';
+import ListItem from './components/ListItem';
+import AddItem from './components/AddItem';
 
-const App: () => React$Node = () => {
-  return (
-    <>
-      <StatusBar barStyle="dark-content" />
-      <SafeAreaView>
-        <ScrollView
-          contentInsetAdjustmentBehavior="automatic"
-          style={styles.scrollView}>
-          {/* <Header />
-          {global.HermesInternal == null ? null : (
-            <View style={styles.engine}>
-              <Text style={styles.footer}>Engine: Hermes</Text>
-            </View>
-          )} */}
-          {/* <View style={styles.body}>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Step Two</Text>
-              <Text style={styles.sectionDescription}>
-                Edit <Text style={styles.highlight}>App.js</Text> to change this
-                screen and then come back to see your edits.
-              </Text>
-            </View>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>See Your Changes</Text>
-              <Text style={styles.sectionDescription}>
-                <ReloadInstructions />
-              </Text>
-            </View>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Debug</Text>
-              <Text style={styles.sectionDescription}>
-                <DebugInstructions />
-              </Text>
-            </View>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Learn More</Text>
-              <Text style={styles.sectionDescription}>
-                Read the docs to discover what to do next:
-              </Text>
-            </View>
-            <LearnMoreLinks />
-          </View> */}
-          <Items />
-        </ScrollView>
-      </SafeAreaView>
-    </>
-  );
-};
+class App extends React.Component {
 
-class Items extends React.Component {
   state = {
-    items: []
+    items: [],
+    editStatus: false,
+    editItemDetail: {},
+    checkedItems: []
   }
+
   componentDidMount() {
     fetch('http://192.168.100.4:3333/api/teams')
       .then(response => response.json())
@@ -85,51 +21,98 @@ class Items extends React.Component {
       .catch(err => alert(err))
   }
 
-  render(){
+  deleteItem = id => {
+    console.log('delete clicked')
+    fetch(`http://192.168.100.4:3333/api/teams/${id}`, {
+      method: 'DELETE'
+    })
+      .then(response => response.json())
+      .then(() => this.setState({
+        ...this.state, items: [...this.state.items.filter(item => item.id !== id)]
+      }))
+      .catch(err => alert(err))
+
+  };
+
+  saveEditItem = editedItem => {
+    console.log(editedItem)
+    fetch(`http://192.168.100.4:3333/api/teams/${editedItem.id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(editedItem)
+    })
+      .then(response => response.json())
+      .then(team => this.setState({ ...this.state, editStatus: !this.state.editStatus, items: this.state.items.map(item => item.id === this.state.editItemDetail.id ? team : item) }))
+      .catch(err => alert(err))
+
+  };
+
+  handleEditChange = name => {
+    this.setState({ ...this.state, editItemDetail: { id: this.state.editItemDetail.id, name } });
+  };
+
+  addItem = text => {
+    if (!text) {
+      Alert.alert(
+        'No item entered',
+        'Please enter a name',
+        [
+          {
+            text: 'Understood',
+            style: 'cancel',
+          },
+        ],
+        { cancelable: true },
+      );
+    } else {
+      fetch('http://192.168.100.4:3333/api/teams', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name: text })
+      })
+        .then(response => response.json())
+        .then(team => this.setState({ ...this.state, items: [...this.state.items, team] }))
+        .catch(err => alert(err))
+    }
+  };
+
+  editItem = (item) => {
+    console.log(item)
+    this.setState({ ...this.state, editItemDetail: item, editStatus: !this.state.editStatus })
+  };
+
+  render() {
     return (
-      <Text>
-        {''}
-      </Text>
-    )
+      <View style={styles.container} >
+        <Header title="Team List" />
+        <AddItem addItem={this.addItem} />
+        <FlatList
+          data={this.state.items}
+          renderItem={({ item }) => (
+            <ListItem
+              key={item.id}
+              item={item}
+              deleteItem={this.deleteItem}
+              editItem={this.editItem}
+              isEditing={this.state.editStatus}
+              editItemDetail={this.state.editItemDetail}
+              saveEditItem={this.saveEditItem}
+              handleEditChange={this.handleEditChange}
+            />
+          )}
+        />
+      </View>
+    );
   }
 }
 
 const styles = StyleSheet.create({
-  scrollView: {
-    backgroundColor: Colors.lighter,
-  },
-  engine: {
-    position: 'absolute',
-    right: 0,
-  },
-  body: {
-    backgroundColor: Colors.white,
-  },
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: Colors.black,
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-    color: Colors.dark,
-  },
-  highlight: {
-    fontWeight: '700',
-  },
-  footer: {
-    color: Colors.dark,
-    fontSize: 12,
-    fontWeight: '600',
-    padding: 4,
-    paddingRight: 12,
-    textAlign: 'right',
+  container: {
+    flex: 1,
   },
 });
 
